@@ -11,6 +11,9 @@ interface ChatBoxProps {
 export default function ChatBox({ webinar, currentUser, onNewMessage }: ChatBoxProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [typedMsg, setTypedMsg] = useState('');
+  const [clearedMessageIds, setClearedMessageIds] = useState<string[]>([]);
+  const [showConfirmClearLocal, setShowConfirmClearLocal] = useState(false);
+  const [showConfirmClearAll, setShowConfirmClearAll] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Retrieve chats from DB
@@ -29,6 +32,21 @@ export default function ChatBox({ webinar, currentUser, onNewMessage }: ChatBoxP
 
     return () => clearInterval(interval);
   }, [webinar.id]);
+
+  // Load local cleared messages list on mount / webinar change
+  useEffect(() => {
+    const key = `cleared_chats_${currentUser.email}_${webinar.id}`;
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      try {
+        setClearedMessageIds(JSON.parse(saved));
+      } catch (e) {
+        setClearedMessageIds([]);
+      }
+    } else {
+      setClearedMessageIds([]);
+    }
+  }, [webinar.id, currentUser.email]);
 
   useEffect(() => {
     // Scroll chats to bottom of the container only, without scrolling the main window
@@ -70,17 +88,104 @@ export default function ChatBox({ webinar, currentUser, onNewMessage }: ChatBoxP
     }
   };
 
+  const handleClearLocal = () => {
+    setShowConfirmClearLocal(true);
+  };
+
+  const executeClearLocal = () => {
+    const allIds = messages.map(m => m.id);
+    const key = `cleared_chats_${currentUser.email}_${webinar.id}`;
+    localStorage.setItem(key, JSON.stringify(allIds));
+    setClearedMessageIds(allIds);
+    setShowConfirmClearLocal(false);
+  };
+
+  const handleRestoreLocal = () => {
+    const key = `cleared_chats_${currentUser.email}_${webinar.id}`;
+    localStorage.removeItem(key);
+    setClearedMessageIds([]);
+  };
+
   const handleClearAll = () => {
-    if (window.confirm('Apakah Anda yakin ingin mengosongkan seluruh obrolan chat webinar ini?')) {
-      DB.clearChats(webinar.id);
-      reloadChats();
-    }
+    setShowConfirmClearAll(true);
+  };
+
+  const executeClearAll = () => {
+    DB.clearChats(webinar.id);
+    reloadChats();
+    setShowConfirmClearAll(false);
   };
 
   const canModerate = currentUser.role === 'admin' || currentUser.role === 'superadmin';
+  const visibleMessages = messages.filter(msg => !clearedMessageIds.includes(msg.id));
 
   return (
-    <div className="glass border border-white/10 rounded-2xl overflow-hidden flex flex-col h-[400px] shadow-2xl accent-glow-indigo">
+    <div className="glass border border-white/10 rounded-2xl overflow-hidden flex flex-col h-[400px] shadow-2xl accent-glow-indigo relative">
+      
+      {/* Custom Confirmation Modals for Sandboxed Iframes */}
+      {showConfirmClearLocal && (
+        <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4 text-center font-sans">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-5 max-w-[280px] shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-full bg-indigo-500/10 flex items-center justify-center mx-auto text-indigo-400">
+              <MessageSquare className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-slate-200">Bersihkan Layar Chat</h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Bersihkan seluruh obrolan saat ini dari layar Anda? Pesan baru yang masuk setelah ini tetap tampil.
+              </p>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmClearLocal(false)}
+                className="flex-1 py-1.5 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold rounded-xl transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={executeClearLocal}
+                className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition cursor-pointer"
+              >
+                Bersihkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showConfirmClearAll && (
+        <div className="absolute inset-0 bg-slate-950/95 backdrop-blur-md z-50 flex flex-col items-center justify-center p-4 text-center font-sans">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-5 max-w-[280px] shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-full bg-rose-500/10 flex items-center justify-center mx-auto text-rose-400">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-slate-200">Kosongkan Database</h4>
+              <p className="text-[11px] text-slate-400 leading-relaxed">
+                Apakah Anda yakin ingin mengosongkan seluruh obrolan chat webinar ini di database? Tindakan ini tidak dapat dibatalkan.
+              </p>
+            </div>
+            <div className="flex space-x-2">
+              <button
+                type="button"
+                onClick={() => setShowConfirmClearAll(false)}
+                className="flex-1 py-1.5 bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold rounded-xl transition cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={executeClearAll}
+                className="flex-1 py-1.5 bg-rose-600 hover:bg-rose-550 text-white text-xs font-semibold rounded-xl transition cursor-pointer"
+              >
+                Kosongkan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Chat Title bar */}
       <div className="bg-slate-950/40 px-4 py-3 border-b border-white/5 flex items-center justify-between backdrop-blur-md">
@@ -89,15 +194,43 @@ export default function ChatBox({ webinar, currentUser, onNewMessage }: ChatBoxP
           <span className="text-sm font-bold text-slate-200">Kolom Obrolan Live</span>
         </div>
         
-        {canModerate && messages.length > 0 && (
-          <button
-            onClick={handleClearAll}
-            id="btn-clear-chats"
-            className="text-[10px] text-rose-400 hover:text-rose-300 font-mono transition-colors border border-rose-500/10 px-2 py-0.5 rounded cursor-pointer"
-          >
-            Kosongkan Chat
-          </button>
-        )}
+        <div className="flex items-center space-x-1.5">
+          {visibleMessages.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearLocal}
+              id="btn-clear-local-chats"
+              className="text-[10px] text-indigo-300 hover:text-indigo-200 font-sans transition-colors border border-indigo-500/20 hover:bg-indigo-500/10 px-2 py-0.5 rounded cursor-pointer shrink-0"
+              title="Bersihkan layar chat Anda saja"
+            >
+              🧹 Bersihkan Layar
+            </button>
+          )}
+
+          {clearedMessageIds.length > 0 && (
+            <button
+              type="button"
+              onClick={handleRestoreLocal}
+              id="btn-restore-local-chats"
+              className="text-[10px] text-slate-400 hover:text-slate-200 font-sans transition-colors border border-white/5 hover:bg-white/5 px-2 py-0.5 rounded cursor-pointer shrink-0"
+              title="Tampilkan kembali pesan sebelumnya"
+            >
+              🔄 Tampilkan Lagi
+            </button>
+          )}
+
+          {canModerate && messages.length > 0 && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              id="btn-clear-chats"
+              className="text-[10px] text-rose-400 hover:text-rose-300 font-sans transition-colors border border-rose-500/10 hover:bg-rose-500/5 px-2 py-0.5 rounded cursor-pointer shrink-0"
+              title="Hapus chat dari semua database (Khusus Admin)"
+            >
+              🚫 Kosongkan Database
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Messages area */}
@@ -106,13 +239,17 @@ export default function ChatBox({ webinar, currentUser, onNewMessage }: ChatBoxP
         className="flex-1 overflow-y-auto p-4 space-y-3" 
         id="chat-messages-container"
       >
-        {messages.length === 0 ? (
+        {visibleMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-4">
             <span className="text-xl">💬</span>
-            <p className="text-xs text-slate-400 mt-2">Belum ada obrolan. Jadilah yang pertama memberikan pertanyaan atau menyapa!</p>
+            <p className="text-xs text-slate-400 mt-2">
+              {messages.length > 0
+                ? 'Layar obrolan dibersihkan. Pesan baru otomatis akan muncul di sini!'
+                : 'Belum ada obrolan. Jadilah yang pertama memberikan pertanyaan atau menyapa!'}
+            </p>
           </div>
         ) : (
-          messages.map((msg) => {
+          visibleMessages.map((msg) => {
             const isMyMsg = msg.senderName === currentUser.namaLengkap;
             const isModeratorRole = msg.senderRole === 'admin' || msg.senderRole === 'superadmin';
 
