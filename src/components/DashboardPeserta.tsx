@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, Webinar, DB } from '../database';
 import { Calendar, Award, FileText, Video, CheckCircle, Search, QrCode, PlayCircle, Info, Bookmark, ExternalLink, Lock, CreditCard, Check, BookOpen, Download, Volume2, Tv } from 'lucide-react';
 import ChatBox from './ChatBox';
+import RundownView from './RundownView';
 
 function getYouTubeEmbedUrl(url: string) {
   if (!url) return '';
@@ -557,6 +558,11 @@ export default function DashboardPeserta({ currentUser, onUpdateUser }: Dashboar
                       </div>
                     </div>
                   )}
+
+                  {/* Rundown Acara */}
+                  <div className="p-4 glass rounded-xl border border-white/5 shadow-lg">
+                    <RundownView rundown={selectedWebinarToPlay.rundown} />
+                  </div>
 
                   {/* Speaker card and summary */}
                   <div className="p-4 glass rounded-xl border border-white/5 space-y-3 shadow-lg">

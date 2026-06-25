@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, Webinar, SystemSettings, DB } from '../database';
-import { TopicCategory } from '../types';
-import { Plus, Trash2, Edit, Save, Globe, Shield, UserX, Calendar, Key, Check, BarChart2, TrendingUp, Users, DollarSign, Settings, RefreshCw, Layers, Award } from 'lucide-react';
+import { TopicCategory, RundownItem } from '../types';
+import { Plus, Trash2, Edit, Save, Globe, Shield, UserX, Calendar, Key, Check, BarChart2, TrendingUp, Users, DollarSign, Settings, RefreshCw, Layers, Award, Coffee, Flag } from 'lucide-react';
 
 interface DashboardSuperAdminProps {
   currentUser: User;
@@ -29,6 +29,13 @@ export default function DashboardSuperAdmin({ currentUser, onRefreshAllData }: D
   const [zoomJoinUrl, setZoomJoinUrl] = useState('');
   const [zoomStartUrl, setZoomStartUrl] = useState('');
   const [webinarPrice, setWebinarPrice] = useState<number>(0);
+
+  // Webinar Rundown Management States
+  const [rundownList, setRundownList] = useState<RundownItem[]>([]);
+  const [rdTime, setRdTime] = useState('');
+  const [rdTitle, setRdTitle] = useState('');
+  const [rdType, setRdType] = useState<'start' | 'session' | 'break' | 'end'>('session');
+  const [editingRdId, setEditingRdId] = useState<string | null>(null);
 
   // API Integration States
   const [zoomApiKey, setZoomApiKey] = useState(settings.zoomApiKey);
@@ -299,6 +306,13 @@ export default function DashboardSuperAdmin({ currentUser, onRefreshAllData }: D
     const randomPasscode = Math.random().toString(36).substring(2, 8).toUpperCase();
     setZoomJoinUrl(`https://zoom.us/j/${randomZoomId}?pwd=${randomPasscode}`);
     setZoomStartUrl(`https://zoom.us/s/${randomZoomId}?pwd=${randomPasscode}`);
+    
+    // Reset rundown states
+    setRundownList([]);
+    setRdTime('');
+    setRdTitle('');
+    setRdType('session');
+    setEditingRdId(null);
   };
 
   const handleOpenEditWebinarForm = (w: Webinar) => {
@@ -318,6 +332,69 @@ export default function DashboardSuperAdmin({ currentUser, onRefreshAllData }: D
     setZoomStartUrl(w.zoomStartUrl || '');
     setWebinarPrice(w.price !== undefined ? w.price : (settings.ticketPrice || 0));
     setCategory(w.category || '');
+    
+    // Load existing rundown or fallback to empty array
+    setRundownList(w.rundown || []);
+    setRdTime('');
+    setRdTitle('');
+    setRdType('session');
+    setEditingRdId(null);
+  };
+
+  const handleAddOrUpdateRundownItem = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!rdTime || !rdTitle) {
+      alert('Mohon lengkapi Waktu dan Agenda/Judul Rundown.');
+      return;
+    }
+
+    if (editingRdId) {
+      // update
+      setRundownList(prev => prev.map(item => 
+        item.id === editingRdId 
+          ? { ...item, time: rdTime, title: rdTitle, type: rdType }
+          : item
+      ));
+      setEditingRdId(null);
+    } else {
+      // create
+      const newItem: RundownItem = {
+        id: `rd-item-${Date.now()}`,
+        time: rdTime,
+        title: rdTitle,
+        type: rdType
+      };
+      setRundownList(prev => [...prev, newItem]);
+    }
+
+    // Reset inputs
+    setRdTime('');
+    setRdTitle('');
+    setRdType('session');
+  };
+
+  const handleEditRundownItem = (item: RundownItem) => {
+    setEditingRdId(item.id);
+    setRdTime(item.time);
+    setRdTitle(item.title);
+    setRdType(item.type);
+  };
+
+  const handleDeleteRundownItem = (id: string) => {
+    setRundownList(prev => prev.filter(item => item.id !== id));
+    if (editingRdId === id) {
+      setEditingRdId(null);
+      setRdTime('');
+      setRdTitle('');
+      setRdType('session');
+    }
+  };
+
+  const handleCancelEditRundownItem = () => {
+    setEditingRdId(null);
+    setRdTime('');
+    setRdTitle('');
+    setRdType('session');
   };
 
   const handleSaveWebinar = (e: React.FormEvent) => {
@@ -357,7 +434,8 @@ export default function DashboardSuperAdmin({ currentUser, onRefreshAllData }: D
         zoomStartUrl: zoomStartUrl || 'https://zoom.us/s/' + Math.floor(100000000 + Math.random() * 900000000) + '_start',
         registeredCount: 0,
         price: Number(webinarPrice),
-        category: category || undefined
+        category: category || undefined,
+        rundown: rundownList
       };
       DB.addWebinar(newWeb);
       setSuccessMsg('Jadwal Webinar baru berhasil ditambahkan.');
@@ -380,7 +458,8 @@ export default function DashboardSuperAdmin({ currentUser, onRefreshAllData }: D
           zoomJoinUrl: zoomJoinUrl || existing.zoomJoinUrl,
           zoomStartUrl: zoomStartUrl || existing.zoomStartUrl,
           price: Number(webinarPrice),
-          category: category || undefined
+          category: category || undefined,
+          rundown: rundownList
         };
         DB.updateWebinar(updatedWeb);
         setSuccessMsg('Data webinar berhasil diperbarui.');
@@ -934,6 +1013,125 @@ export default function DashboardSuperAdmin({ currentUser, onRefreshAllData }: D
                   rows={3}
                   className="w-full bg-slate-950/40 border border-white/10 text-slate-200 text-xs rounded-xl px-3 py-2 outline-none focus:border-indigo-500 font-sans"
                 ></textarea>
+              </div>
+
+              {/* WEBINAR RUNDOWN EDITOR */}
+              <div className="bg-slate-950/35 border border-white/5 rounded-xl p-4 space-y-4 font-sans">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-bold text-slate-200">🕛 Atur Susunan Rundown Acara</span>
+                </div>
+                
+                {/* List of current rundown items */}
+                {rundownList.length === 0 ? (
+                  <p className="text-[11px] text-slate-400 italic">Belum ada agenda rundown yang ditambahkan. Gunakan form di bawah untuk membuat agenda.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {rundownList.map((item, index) => {
+                      return (
+                        <div key={item.id || index} className="flex items-center justify-between bg-slate-900/60 border border-white/5 p-2.5 rounded-xl text-xs">
+                          <div className="flex items-center space-x-3">
+                            <span className="px-2 py-0.5 bg-indigo-500/10 text-indigo-300 border border-indigo-500/10 rounded font-mono text-[10px]">
+                              {item.time}
+                            </span>
+                            <span className="text-slate-250 font-medium">{item.title}</span>
+                            <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase font-bold ${
+                              item.type === 'start' ? 'bg-emerald-500/10 text-emerald-400' :
+                              item.type === 'break' ? 'bg-amber-500/10 text-amber-400' :
+                              item.type === 'end' ? 'bg-rose-500/10 text-rose-400' :
+                              'bg-indigo-500/10 text-indigo-400'
+                            }`}>
+                              {item.type}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center space-x-1.5 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleEditRundownItem(item)}
+                              className="p-1 hover:bg-white/5 text-slate-400 hover:text-slate-200 rounded transition cursor-pointer"
+                              title="Sunting"
+                            >
+                              <Edit className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteRundownItem(item.id)}
+                              className="p-1 hover:bg-white/5 text-rose-400 hover:text-rose-300 rounded transition cursor-pointer"
+                              title="Hapus"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Form to add or edit item */}
+                <div className="bg-slate-900/40 border border-white/5 p-3 rounded-xl space-y-3">
+                  <span className="block text-[11px] font-bold text-indigo-400 uppercase tracking-wider">
+                    {editingRdId ? '📝 Edit Item Rundown' : '➕ Tambah Item Rundown Baru'}
+                  </span>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                    <div className="sm:col-span-3 space-y-1">
+                      <label className="block text-[10px] text-slate-400 font-medium">Rentang Waktu</label>
+                      <input
+                        type="text"
+                        value={rdTime}
+                        onChange={(e) => setRdTime(e.target.value)}
+                        placeholder="Misal: 09.00 - 09.15"
+                        className="w-full bg-slate-950/40 border border-white/10 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-5 space-y-1">
+                      <label className="block text-[10px] text-slate-400 font-medium">Judul Agenda / Kegiatan</label>
+                      <input
+                        type="text"
+                        value={rdTitle}
+                        onChange={(e) => setRdTitle(e.target.value)}
+                        placeholder="Misal: Pembukaan & Sambutan"
+                        className="w-full bg-slate-950/40 border border-white/10 text-slate-200 text-xs rounded-lg px-2.5 py-1.5 outline-none focus:border-indigo-500"
+                      />
+                    </div>
+
+                    <div className="sm:col-span-4 space-y-1">
+                      <label className="block text-[10px] text-slate-400 font-medium">Jenis Agenda</label>
+                      <div className="flex space-x-1.5">
+                        <select
+                          value={rdType}
+                          onChange={(e) => setRdType(e.target.value as any)}
+                          className="flex-1 bg-slate-900 text-slate-200 border border-white/10 rounded-lg px-2 py-1.5 text-xs outline-none focus:border-indigo-500 cursor-pointer h-[30px]"
+                        >
+                          <option value="start">start (Pembukaan)</option>
+                          <option value="session">session (Materi)</option>
+                          <option value="break">break (Coffee Break)</option>
+                          <option value="end">end (Penutup)</option>
+                        </select>
+
+                        <button
+                          type="button"
+                          onClick={handleAddOrUpdateRundownItem}
+                          className="px-3 bg-indigo-650 hover:bg-indigo-550 text-white font-bold text-xs rounded-lg transition-all cursor-pointer shrink-0"
+                        >
+                          {editingRdId ? 'Simpan' : 'Tambah'}
+                        </button>
+                        
+                        {editingRdId && (
+                          <button
+                            type="button"
+                            onClick={handleCancelEditRundownItem}
+                            className="px-2.5 bg-white/5 hover:bg-white/10 text-slate-350 text-xs rounded-lg transition border border-white/5 cursor-pointer shrink-0"
+                          >
+                            Batal
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-end space-x-2 pt-2">

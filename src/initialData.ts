@@ -12,7 +12,16 @@ export const INITIAL_WEBINARS: Webinar[] = [
     description: 'Pelajari dasar-dasar digital marketing, cara membuat konten viral di TikTok dan Instagram, serta bagaimana mengoptimalkan Google Maps bisnis untuk mendapatkan pelanggan lokal tanpa modal besar.',
     zoomJoinUrl: 'https://zoom.us/j/98765432101',
     zoomStartUrl: 'https://zoom.us/s/98765432101_start',
-    registeredCount: 142
+    registeredCount: 142,
+    rundown: [
+      { id: 'rd-1-1', time: '09.00 - 09.15', title: 'Pembukaan & Sambutan', type: 'start' },
+      { id: 'rd-1-2', time: '09.15 - 10.00', title: 'Strategi Digital Marketing - Dr. Andi Pratama', type: 'session' },
+      { id: 'rd-1-3', time: '10.00 - 10.45', title: 'Menguasai Marketplace - Sari Dewi, M.M.', type: 'session' },
+      { id: 'rd-1-4', time: '10.45 - 11.00', title: 'Coffee Break', type: 'break' },
+      { id: 'rd-1-5', time: '11.00 - 11.30', title: 'Content Creation & Branding - Rina Kusuma', type: 'session' },
+      { id: 'rd-1-6', time: '11.30 - 11.50', title: 'Diskusi Interaktif & Tanya Jawab', type: 'session' },
+      { id: 'rd-1-7', time: '11.50 - 12.00', title: 'Penutupan & Doorprize', type: 'end' }
+    ]
   },
   {
     id: 'webinar-2',
@@ -25,7 +34,13 @@ export const INITIAL_WEBINARS: Webinar[] = [
     description: 'Webinar interaktif mengulas teknik pencatatan kas harian, menghitung harga pokok penjualan (HPP) yang akurat, menghindari kebocoran modal, dan pemanfaatan aplikasi pembukuan digital gratis.',
     zoomJoinUrl: 'https://zoom.us/j/98765432102',
     zoomStartUrl: 'https://zoom.us/s/98765432102_start',
-    registeredCount: 218
+    registeredCount: 218,
+    rundown: [
+      { id: 'rd-2-1', time: '10.00 - 10.15', title: 'Registrasi & Masuk Ruang Zoom', type: 'start' },
+      { id: 'rd-2-2', time: '10.15 - 11.15', title: 'Penyajian Materi Finansial & Pembukuan Praktis', type: 'session' },
+      { id: 'rd-2-3', time: '11.15 - 11.45', title: 'Tanya Jawab & Bedah Kasus Pembukuan Toko', type: 'session' },
+      { id: 'rd-2-4', time: '11.45 - 12.00', title: 'Evaluasi Akhir & Pengisian Presensi Sertifikat', type: 'end' }
+    ]
   },
   {
     id: 'webinar-3',
@@ -41,7 +56,13 @@ export const INITIAL_WEBINARS: Webinar[] = [
     recordingUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
     zoomJoinUrl: 'https://zoom.us/j/98765432103',
     zoomStartUrl: 'https://zoom.us/s/98765432103_start',
-    registeredCount: 310
+    registeredCount: 310,
+    rundown: [
+      { id: 'rd-3-1', time: '09.00 - 09.15', title: 'Sambutan Kepala Dinas Koperasi & UMKM', type: 'start' },
+      { id: 'rd-3-2', time: '09.15 - 10.30', title: 'Sesi 1: Menyiapkan Legalitas & Sertifikasi Hijau', type: 'session' },
+      { id: 'rd-3-3', time: '10.30 - 11.15', title: 'Sesi 2: Menghubungi Buyers & Negosiasi Ekspor', type: 'session' },
+      { id: 'rd-3-4', time: '11.15 - 11.30', title: 'Penutup, Sesi Foto & e-Sertifikat', type: 'end' }
+    ]
   }
 ];
 

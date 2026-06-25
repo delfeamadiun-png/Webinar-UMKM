@@ -36,6 +36,14 @@ export interface Webinar {
   registeredCount: number;
   price?: number;
   category?: string; // Selected category/topic
+  rundown?: RundownItem[];
+}
+
+export interface RundownItem {
+  id: string;
+  time: string;
+  title: string;
+  type: 'start' | 'session' | 'break' | 'end';
 }
 
 export interface ChatMessage {
