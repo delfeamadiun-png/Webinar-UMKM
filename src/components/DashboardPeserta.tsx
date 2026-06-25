@@ -52,13 +52,11 @@ export default function DashboardPeserta({ currentUser, onUpdateUser }: Dashboar
   const registeredWebinars = webinars.filter(w => currentUser.registeredWebinars.includes(w.id));
   const availableWebinars = filteredWebinars.filter(w => !currentUser.registeredWebinars.includes(w.id));
 
-  // Check for unpaid webinars under restricted zoom settings
-  const unpaidWebinars = settings.restrictZoomUnpaid
-    ? registeredWebinars.filter(w => {
-        const price = w.price !== undefined ? w.price : (settings.midtransConnected ? settings.ticketPrice : 0);
-        return price > 0 && !currentUser.paidWebinars?.includes(w.id);
-      })
-    : [];
+  // Check for unpaid webinars (any class requiring payment)
+  const unpaidWebinars = registeredWebinars.filter(w => {
+    const price = w.price !== undefined ? w.price : (settings.midtransConnected ? settings.ticketPrice : 0);
+    return price > 0 && !currentUser.paidWebinars?.includes(w.id);
+  });
 
   const handleRegisterWebinar = (webinarId: string) => {
     // Sync to user
@@ -71,6 +69,12 @@ export default function DashboardPeserta({ currentUser, onUpdateUser }: Dashboar
       if (webinar) {
         webinar.registeredCount += 1;
         DB.updateWebinar(webinar);
+        
+        // Immediately trigger the WhatsApp/Bank payment modal if price > 0
+        const price = webinar.price !== undefined ? webinar.price : (settings.midtransConnected ? settings.ticketPrice : 0);
+        if (price > 0) {
+          setPayingWebinarId(webinarId);
+        }
       }
       
       DB.updateUser(updatedUser);
@@ -637,29 +641,35 @@ export default function DashboardPeserta({ currentUser, onUpdateUser }: Dashboar
                       <p className="text-[10px] font-mono text-slate-400 mt-1">Narasumber: <strong className="text-slate-350">{webinar.speaker}</strong></p>
 
                       {/* Payment Status Badge inside card */}
-                      {settings.restrictZoomUnpaid && (
-                        <div className="mt-2.5 flex items-center justify-between bg-slate-950/30 border border-white/5 p-2 rounded-lg font-sans">
-                          <span className="text-[9px] text-slate-400 font-medium">TIKET:</span>
-                          {currentUser.paidWebinars?.includes(webinar.id) ? (
-                            <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider flex items-center space-x-1">
-                              <Check className="w-2.5 h-2.5" />
-                              <span>Lunas</span>
-                            </span>
-                          ) : (
-                            <div className="flex items-center space-x-1.5">
-                              <span className="bg-amber-500/10 text-amber-400 border border-amber-500/15 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wider">
-                                Belum Bayar
-                              </span>
-                              <button
-                                onClick={() => setPayingWebinarId(webinar.id)}
-                                className="px-2 py-0.5 bg-indigo-600/35 hover:bg-indigo-550 text-indigo-200 hover:text-white rounded text-[8px] font-bold uppercase transition-all cursor-pointer"
-                              >
-                                Bayar
-                              </button>
+                      {(() => {
+                        const price = webinar.price !== undefined ? webinar.price : (settings.midtransConnected ? settings.ticketPrice : 0);
+                        if (price > 0) {
+                          return (
+                            <div className="mt-2.5 flex items-center justify-between bg-slate-950/30 border border-white/5 p-2 rounded-lg font-sans">
+                              <span className="text-[9px] text-slate-400 font-medium">TIKET:</span>
+                              {currentUser.paidWebinars?.includes(webinar.id) ? (
+                                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-wider flex items-center space-x-1">
+                                  <Check className="w-2.5 h-2.5" />
+                                  <span>Lunas</span>
+                                </span>
+                              ) : (
+                                <div className="flex items-center space-x-1.5">
+                                  <span className="bg-amber-500/10 text-amber-400 border border-amber-500/15 px-1.5 py-0.5 rounded text-[8px] font-semibold uppercase tracking-wider">
+                                    Belum Bayar
+                                  </span>
+                                  <button
+                                    onClick={() => setPayingWebinarId(webinar.id)}
+                                    className="px-2 py-0.5 bg-indigo-650 hover:bg-indigo-550 text-indigo-200 hover:text-white rounded text-[8px] font-bold uppercase transition-all cursor-pointer"
+                                  >
+                                    Bayar / Konfirmasi WA
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      )}
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
 
                     <div className="mt-4 pt-3 border-t border-white/5 flex items-center justify-between">
@@ -789,6 +799,18 @@ export default function DashboardPeserta({ currentUser, onUpdateUser }: Dashboar
                           <span className="bg-white/5 text-slate-300 px-2 py-0.5 rounded text-[9px] font-mono border border-white/5">
                             ⏰ {webinar.time}
                           </span>
+                          {(() => {
+                            const price = webinar.price !== undefined ? webinar.price : (settings.midtransConnected ? settings.ticketPrice : 0);
+                            return price > 0 ? (
+                              <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded text-[9px] font-mono font-bold">
+                                💰 Rp {price.toLocaleString('id-ID')}
+                              </span>
+                            ) : (
+                              <span className="bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 px-2 py-0.5 rounded text-[9px] font-mono font-bold">
+                                🎁 Gratis / Free
+                              </span>
+                            );
+                          })()}
                         </div>
                         
                         <h3 className="text-sm font-bold text-slate-200 font-sans">{webinar.title}</h3>
@@ -1206,38 +1228,11 @@ export default function DashboardPeserta({ currentUser, onUpdateUser }: Dashboar
                 </div>
               </div>
 
-              {/* Way 1: Instant Simulation */}
-              <div className="border border-white/5 bg-white/[0.01] rounded-xl p-4 space-y-3">
-                <h4 className="text-[11px] font-bold text-indigo-300 uppercase tracking-wider flex items-center space-x-1.5">
-                  <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full"></span>
-                  <span>Opsi 1: Otomatis (Simulasi Midtrans)</span>
-                </h4>
-                <p className="text-[10px] text-slate-400 leading-relaxed">
-                  Lakukan simulasi pembayaran instan tanpa mentransfer uang sungguhan untuk menguji sistem lunas otomatis.
-                </p>
-                <button
-                  onClick={() => {
-                    const currentPaid = currentUser.paidWebinars ? [...currentUser.paidWebinars] : [];
-                    if (!currentPaid.includes(payingWebinarId)) {
-                      currentPaid.push(payingWebinarId);
-                    }
-                    const updatedUser = { ...currentUser, paidWebinars: currentPaid };
-                    DB.updateUser(updatedUser);
-                    onUpdateUser(updatedUser);
-                    setPayingWebinarId(null);
-                  }}
-                  className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-550 text-white text-xs font-bold transition-all cursor-pointer shadow-lg shadow-indigo-600/15 flex items-center justify-center space-x-1"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>Simulasikan Pembayaran Lunas</span>
-                </button>
-              </div>
-
               {/* Way 2: Manual Bank Transfer */}
               <div className="border border-white/5 bg-white/[0.01] rounded-xl p-4 space-y-3">
                 <h4 className="text-[11px] font-bold text-emerald-400 uppercase tracking-wider flex items-center space-x-1.5">
                   <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full"></span>
-                  <span>Opsi 2: Transfer Bank Manual</span>
+                  <span>Transfer Bank Manual</span>
                 </h4>
                 <p className="text-[10px] text-slate-400 leading-relaxed">
                   Silakan transfer senilai tagihan ke rekening bank resmi penyelenggara webinar berikut ini:
