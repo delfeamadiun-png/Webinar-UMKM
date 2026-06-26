@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User, Webinar, SystemSettings, DB } from '../database';
 import { TopicCategory, RundownItem } from '../types';
-import { Plus, Trash2, Edit, Save, Globe, Shield, UserX, Calendar, Key, Check, BarChart2, TrendingUp, Users, DollarSign, Settings, RefreshCw, Layers, Award, Coffee, Flag } from 'lucide-react';
+import { Plus, Trash2, Edit, Save, Globe, Shield, UserX, Calendar, Key, Check, BarChart2, TrendingUp, Users, DollarSign, Settings, RefreshCw, Layers, Award, Coffee, Flag, Search, Lock, X } from 'lucide-react';
 
 interface DashboardSuperAdminProps {
   currentUser: User;
@@ -87,6 +87,12 @@ export default function DashboardSuperAdmin({ currentUser, onRefreshAllData }: D
 
   const [successMsg, setSuccessMsg] = useState('');
   const [activeTab, setActiveTab] = useState<'overview' | 'webinars' | 'users' | 'api'>('overview');
+
+  // User list search & filter states
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userFilterWebinarId, setUserFilterWebinarId] = useState('');
+  const [resetPasswordUser, setResetPasswordUser] = useState<User | null>(null);
+  const [newPasswordValue, setNewPasswordValue] = useState('');
 
   // Real-time state subscription to DB
   React.useEffect(() => {
@@ -512,6 +518,20 @@ export default function DashboardSuperAdmin({ currentUser, onRefreshAllData }: D
     const p = w.price !== undefined ? w.price : (settings.midtransConnected ? settings.ticketPrice : 0);
     return sum + ((w.registeredCount || 0) * p);
   }, 0);
+
+  const filteredUsers = users.filter(u => {
+    const query = userSearchQuery.trim().toLowerCase();
+    const matchSearch = !query || 
+      u.namaLengkap.toLowerCase().includes(query) ||
+      u.email.toLowerCase().includes(query) ||
+      u.whatsapp.toLowerCase().includes(query) ||
+      (u.namaUsaha && u.namaUsaha.toLowerCase().includes(query)) ||
+      (u.bidangUsaha && u.bidangUsaha.toLowerCase().includes(query));
+
+    const matchWebinar = userFilterWebinarId === '' || u.registeredWebinars.includes(userFilterWebinarId);
+
+    return matchSearch && matchWebinar;
+  });
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -1199,9 +1219,58 @@ export default function DashboardSuperAdmin({ currentUser, onRefreshAllData }: D
       {/* 3. Manajemen Role kustom (User Role Editor) */}
       {activeTab === 'users' && (
         <div className="space-y-4 animate-in fade-in duration-200">
-          <div className="border-b border-white/5 pb-3">
-            <h2 className="text-lg font-bold text-slate-205 font-sans">User Role Editor & Manajemen Hak Akses</h2>
-            <p className="text-xs text-slate-400 mt-1 font-sans">Ubah peran akun secara dinamis untuk menguji batasan dasbor Peserta, Moderator/Admin, atau Super Admin secara langsung.</p>
+          <div className="border-b border-white/5 pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold text-slate-205 font-sans flex items-center space-x-2">
+                <span>User Role Editor & Manajemen Hak Akses</span>
+                <span className="text-xs bg-indigo-500/10 text-indigo-400 border border-indigo-500/15 px-2 py-0.5 rounded-full font-mono font-medium">
+                  {filteredUsers.length} dari {users.length} Akun
+                </span>
+              </h2>
+              <p className="text-xs text-slate-400 mt-1 font-sans">Ubah peran akun secara dinamis dan kelola sandi atau filter peserta per sesi pendaftaran secara instan.</p>
+            </div>
+          </div>
+
+          {/* Search & Filter Bar */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 bg-slate-900/60 p-4 rounded-2xl border border-white/5">
+            {/* Search Input */}
+            <div className="relative md:col-span-7">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                <Search className="w-4 h-4 text-slate-450" />
+              </span>
+              <input
+                type="text"
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+                placeholder="Cari nama lengkap, email, nomor HP/WA, atau nama usaha..."
+                className="w-full bg-slate-950/40 border border-white/10 text-slate-200 text-xs rounded-xl pl-10 pr-4 py-2.5 outline-none focus:border-indigo-500 font-sans transition-all placeholder-slate-500"
+              />
+              {userSearchQuery && (
+                <button
+                  onClick={() => setUserSearchQuery('')}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-200 text-xs"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* Webinar Dropdown Filter */}
+            <div className="md:col-span-5 flex items-center space-x-2 w-full">
+              <span className="text-[11px] text-slate-400 font-medium font-sans shrink-0">Filter Kelas/Sesi:</span>
+              <select
+                value={userFilterWebinarId}
+                onChange={(e) => setUserFilterWebinarId(e.target.value)}
+                className="w-full bg-slate-950/40 text-slate-250 border border-white/10 focus:border-indigo-500 rounded-xl px-3 py-2.5 text-xs outline-none cursor-pointer h-[38px] font-sans transition"
+              >
+                <option value="">Semua Kelas Webinar</option>
+                {webinars.map(web => (
+                  <option key={web.id} value={web.id}>
+                    {web.title}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="glass border border-white/10 rounded-2xl overflow-hidden shadow-lg">
@@ -1214,100 +1283,205 @@ export default function DashboardSuperAdmin({ currentUser, onRefreshAllData }: D
                     <th className="p-4">No. HP / WA</th>
                     <th className="p-4">Sesi & Hak Akses Pendaftaran (Lunas / Ikut)</th>
                     <th className="p-4">Hak Akses Peran (Role)</th>
+                    <th className="p-4 text-center">Aksi / Keamanan</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 text-slate-200 font-sans">
-                  {users.map(u => (
-                    <tr key={u.email} className="hover:bg-white/5 transition">
-                      <td className="p-4">
-                        <div className="font-bold text-slate-200">{u.namaLengkap}</div>
-                        <div className="text-[10px] text-slate-400">{u.namaUsaha || 'UMKM Nasional'} ({u.bidangUsaha || 'Multi'})</div>
+                  {filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="p-8 text-center text-slate-400 italic font-sans text-xs">
+                        Tidak ada pengguna yang cocok dengan kriteria pencarian atau filter sesi kelas Anda.
                       </td>
-                      <td className="p-4 font-mono text-[11px] text-slate-305">{u.email}</td>
-                      <td className="p-4 font-mono text-[11px] text-slate-305">{u.whatsapp}</td>
-                      <td className="p-4 min-w-[280px]">
-                        {u.role !== 'peserta' ? (
-                          <span className="text-[10px] text-slate-500 italic block">Bukan Peserta (Akses Terbuka)</span>
-                        ) : webinars.length === 0 ? (
-                          <span className="text-[10px] text-slate-500 italic block">Belum ada kelas terdaftar</span>
-                        ) : (
-                          <div className="space-y-1 max-h-[140px] overflow-y-auto pr-1">
-                            {webinars.map(web => {
-                              const isRegistered = u.registeredWebinars.includes(web.id);
-                              const isPaid = u.paidWebinars?.includes(web.id) || false;
-                              return (
-                                <div key={web.id} className="flex items-center justify-between bg-slate-950/40 p-1.5 rounded-lg border border-white/5 gap-2 text-[10px]">
-                                  <span className="text-slate-300 truncate max-w-[120px]" title={web.title}>
-                                    {web.title}
-                                  </span>
-                                  <div className="flex items-center space-x-2 shrink-0">
-                                    <label className="flex items-center space-x-1 cursor-pointer">
-                                      <input
-                                        type="checkbox"
-                                        checked={isRegistered}
-                                        onChange={() => {
-                                          const updatedReg = isRegistered
-                                            ? u.registeredWebinars.filter(id => id !== web.id)
-                                            : [...u.registeredWebinars, web.id];
-                                          let updatedPaid = u.paidWebinars ? [...u.paidWebinars] : [];
-                                          if (isRegistered) {
-                                            updatedPaid = updatedPaid.filter(id => id !== web.id);
-                                          }
-                                          const updatedUser = { ...u, registeredWebinars: updatedReg, paidWebinars: updatedPaid };
+                    </tr>
+                  ) : (
+                    filteredUsers.map(u => (
+                      <tr key={u.email} className="hover:bg-white/5 transition">
+                        <td className="p-4">
+                          <div className="font-bold text-slate-205">{u.namaLengkap}</div>
+                          <div className="text-[10px] text-slate-400">{u.namaUsaha || 'UMKM Nasional'} ({u.bidangUsaha || 'Multi'})</div>
+                        </td>
+                        <td className="p-4 font-mono text-[11px] text-slate-305">{u.email}</td>
+                        <td className="p-4 font-mono text-[11px] text-slate-305">{u.whatsapp}</td>
+                        <td className="p-4 min-w-[280px]">
+                          {u.role !== 'peserta' ? (
+                            <span className="text-[10px] text-slate-500 italic block">Bukan Peserta (Akses Terbuka)</span>
+                          ) : webinars.length === 0 ? (
+                            <span className="text-[10px] text-slate-500 italic block">Belum ada kelas terdaftar</span>
+                          ) : (
+                            <div className="space-y-1 max-h-[140px] overflow-y-auto pr-1">
+                              {webinars.map(web => {
+                                const isRegistered = u.registeredWebinars.includes(web.id);
+                                const isPaid = u.paidWebinars?.includes(web.id) || false;
+                                return (
+                                  <div key={web.id} className="flex items-center justify-between bg-slate-950/40 p-1.5 rounded-lg border border-white/5 gap-2 text-[10px]">
+                                    <span className="text-slate-300 truncate max-w-[120px]" title={web.title}>
+                                      {web.title}
+                                    </span>
+                                    <div className="flex items-center space-x-2 shrink-0">
+                                      <label className="flex items-center space-x-1 cursor-pointer">
+                                        <input
+                                          type="checkbox"
+                                          checked={isRegistered}
+                                          onChange={() => {
+                                            const updatedReg = isRegistered
+                                              ? u.registeredWebinars.filter(id => id !== web.id)
+                                              : [...u.registeredWebinars, web.id];
+                                            let updatedPaid = u.paidWebinars ? [...u.paidWebinars] : [];
+                                            if (isRegistered) {
+                                              updatedPaid = updatedPaid.filter(id => id !== web.id);
+                                            }
+                                            const updatedUser = { ...u, registeredWebinars: updatedReg, paidWebinars: updatedPaid };
+                                            DB.updateUser(updatedUser);
+                                            reloadData();
+                                          }}
+                                          className="rounded border-white/10 text-indigo-600 focus:ring-0 w-3 h-3 bg-slate-900 cursor-pointer"
+                                        />
+                                        <span className="text-[9px] text-slate-400">Ikut</span>
+                                      </label>
+
+                                      <button
+                                        disabled={!isRegistered}
+                                        onClick={() => {
+                                          const currentPaid = u.paidWebinars ? [...u.paidWebinars] : [];
+                                          const updatedPaid = isPaid
+                                            ? currentPaid.filter(id => id !== web.id)
+                                            : [...currentPaid, web.id];
+                                          const updatedUser = { ...u, paidWebinars: updatedPaid };
                                           DB.updateUser(updatedUser);
                                           reloadData();
                                         }}
-                                        className="rounded border-white/10 text-indigo-600 focus:ring-0 w-3 h-3 bg-slate-900 cursor-pointer"
-                                      />
-                                      <span className="text-[9px] text-slate-400">Ikut</span>
-                                    </label>
-
-                                    <button
-                                      disabled={!isRegistered}
-                                      onClick={() => {
-                                        const currentPaid = u.paidWebinars ? [...u.paidWebinars] : [];
-                                        const updatedPaid = isPaid
-                                          ? currentPaid.filter(id => id !== web.id)
-                                          : [...currentPaid, web.id];
-                                        const updatedUser = { ...u, paidWebinars: updatedPaid };
-                                        DB.updateUser(updatedUser);
-                                        reloadData();
-                                      }}
-                                      className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-all ${
-                                        !isRegistered
-                                          ? 'bg-slate-800 text-slate-500 border border-transparent cursor-not-allowed opacity-50'
-                                          : isPaid
-                                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 cursor-pointer text-[9px]'
-                                          : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 cursor-pointer text-[9px]'
-                                      }`}
-                                    >
-                                      {isPaid ? 'Lunas' : 'Belum'}
-                                    </button>
+                                        className={`px-1.5 py-0.5 text-[9px] font-bold rounded transition-all ${
+                                          !isRegistered
+                                            ? 'bg-slate-800 text-slate-500 border border-transparent cursor-not-allowed opacity-50'
+                                            : isPaid
+                                            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 hover:bg-emerald-500/30 cursor-pointer text-[9px]'
+                                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20 hover:bg-rose-500/20 cursor-pointer text-[9px]'
+                                        }`}
+                                      >
+                                        {isPaid ? 'Lunas' : 'Belum'}
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </td>
-                      <td className="p-4">
-                        <select
-                          value={u.role}
-                          onChange={(e) => handleUserRoleChange(u.email, e.target.value as any)}
-                          id={`select-role-${u.email.replace(/[@.]/g, '-')}`}
-                          className="bg-slate-900 text-slate-200 border border-white/10 focus:border-indigo-500 rounded-lg px-2 py-1 text-xs outline-none cursor-pointer h-[32px] font-sans"
-                        >
-                          <option value="peserta">PESERTA</option>
-                          <option value="admin">MODERATOR / ADMIN</option>
-                          <option value="superadmin">SUPER ADMIN</option>
-                        </select>
-                      </td>
-                    </tr>
-                  ))}
+                                );
+                              })}
+                            </div>
+                          )}
+                        </td>
+                        <td className="p-4">
+                          <select
+                            value={u.role}
+                            onChange={(e) => handleUserRoleChange(u.email, e.target.value as any)}
+                            id={`select-role-${u.email.replace(/[@.]/g, '-')}`}
+                            className="bg-slate-900 text-slate-200 border border-white/10 focus:border-indigo-500 rounded-lg px-2 py-1 text-xs outline-none cursor-pointer h-[32px] font-sans w-full min-w-[120px]"
+                          >
+                            <option value="peserta">PESERTA</option>
+                            <option value="admin">MODERATOR / ADMIN</option>
+                            <option value="superadmin">SUPER ADMIN</option>
+                          </select>
+                        </td>
+                        <td className="p-4 text-center">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setResetPasswordUser(u);
+                              setNewPasswordValue(u.password || '123456');
+                            }}
+                            className="mx-auto px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 hover:text-indigo-300 text-slate-300 rounded-lg border border-white/5 transition flex items-center justify-center space-x-1 cursor-pointer"
+                            title="Reset Password Pengguna"
+                          >
+                            <Lock className="w-3.5 h-3.5 text-indigo-400" />
+                            <span className="text-[10px] font-bold">Reset Password</span>
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
+
+          {/* Reset Password Overlay Modal */}
+          {resetPasswordUser && (
+            <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-sans animate-in fade-in duration-200">
+              <div className="bg-slate-900 border border-white/10 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl relative animate-in zoom-in-95 duration-200">
+                <button
+                  onClick={() => {
+                    setResetPasswordUser(null);
+                    setNewPasswordValue('');
+                  }}
+                  className="absolute top-4 right-4 text-slate-400 hover:text-slate-200 cursor-pointer p-1 rounded-lg hover:bg-white/5 transition"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+                
+                <div className="flex items-center space-x-2.5 text-indigo-400">
+                  <div className="w-9 h-9 rounded-full bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20">
+                    <Lock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-100">Atur Ulang Sandi Pengguna</h3>
+                    <p className="text-[10px] text-slate-450">Setel kata sandi baru untuk akun ini.</p>
+                  </div>
+                </div>
+
+                <div className="bg-slate-950/45 p-3 rounded-xl border border-white/5 space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Nama Lengkap:</span>
+                    <strong className="text-slate-200 font-semibold">{resetPasswordUser.namaLengkap}</strong>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Email:</span>
+                    <span className="text-slate-300 font-mono">{resetPasswordUser.email}</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-[11px] text-slate-300 font-medium">Kata Sandi Baru</label>
+                  <input
+                    type="text"
+                    value={newPasswordValue}
+                    onChange={(e) => setNewPasswordValue(e.target.value)}
+                    placeholder="Masukkan kata sandi baru..."
+                    className="w-full bg-slate-950/50 border border-white/10 text-slate-200 text-xs rounded-xl px-3 py-2.5 outline-none focus:border-indigo-500 font-mono"
+                  />
+                  <p className="text-[9px] text-slate-400 italic">Peserta dapat menggunakan sandi ini untuk login di halaman depan.</p>
+                </div>
+
+                <div className="flex justify-end space-x-2.5 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setResetPasswordUser(null);
+                      setNewPasswordValue('');
+                    }}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-750 text-slate-300 border border-white/5 text-xs font-bold rounded-xl transition cursor-pointer"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newPasswordValue.trim()) {
+                        alert('Kata sandi baru tidak boleh kosong.');
+                        return;
+                      }
+                      const updated = { ...resetPasswordUser, password: newPasswordValue.trim() };
+                      DB.updateUser(updated);
+                      reloadData();
+                      setSuccessMsg(`Sandi untuk ${resetPasswordUser.namaLengkap} berhasil diubah.`);
+                      setResetPasswordUser(null);
+                      setNewPasswordValue('');
+                      setTimeout(() => setSuccessMsg(''), 3000);
+                    }}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-550 text-white text-xs font-bold rounded-xl transition cursor-pointer shadow-lg shadow-indigo-600/15"
+                  >
+                    Simpan Sandi Baru
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
